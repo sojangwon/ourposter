@@ -349,15 +349,19 @@ function photoLayer(slot,w,h){
   const sc=Math.max(w/iw,h/ih)*s.zoom,dw=iw*sc,dh=ih*sc,ox=(w-dw)/2+s.panX*(dw-w)/2,oy=(h-dh)/2+s.panY*(dh-h)/2;
   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));
   const g=c.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(img,ox,oy,dw,dh);
-  const mono=CW[S.cw].g==='mono',a=S.unlocked?S.adj:{b:0,c:0,s:0,w:0};
-  if(mono||a.b||a.c||a.s||a.w){
-    const d=g.getImageData(0,0,c.width,c.height),p=d.data,cf=(a.c/100+1)*(mono?1.06:1),sf=1+a.s/100,bb=a.b*2.55,ww=a.w*.8;
-    for(let i=0;i<p.length;i+=4){let r=p[i],gg=p[i+1],b=p[i+2];const y=.299*r+.587*gg+.114*b;
-      if(mono){r=gg=b=y}else if(a.s){r=y+(r-y)*sf;gg=y+(gg-y)*sf;b=y+(b-y)*sf}
-      r=(r+bb-128)*cf+128+ww;gg=(gg+bb-128)*cf+128;b=(b+bb-128)*cf+128-ww;
-      p[i]=r<0?0:r>255?255:r;p[i+1]=gg<0?0:gg>255?255:gg;p[i+2]=b<0?0:b>255?255:b}
-    g.putImageData(d,0,0)}
+  adjustPixels(g,c.width,c.height);
   return c;
+}
+/* 흑백 처리와 색감 보정(구매 후)을 픽셀에 적용 */
+function adjustPixels(g,w,h){
+  const mono=CW[S.cw].g==='mono',a=S.unlocked?S.adj:{b:0,c:0,s:0,w:0};
+  if(!(mono||a.b||a.c||a.s||a.w))return;
+  const d=g.getImageData(0,0,w,h),p=d.data,cf=(a.c/100+1)*(mono?1.06:1),sf=1+a.s/100,bb=a.b*2.55,ww=a.w*.8;
+  for(let i=0;i<p.length;i+=4){if(!p[i+3])continue;let r=p[i],gg=p[i+1],b=p[i+2];const y=.299*r+.587*gg+.114*b;
+    if(mono){r=gg=b=y}else if(a.s){r=y+(r-y)*sf;gg=y+(gg-y)*sf;b=y+(b-y)*sf}
+    r=(r+bb-128)*cf+128+ww;gg=(gg+bb-128)*cf+128;b=(b+bb-128)*cf+128-ww;
+    p[i]=r<0?0:r>255?255:r;p[i+1]=gg<0?0:gg>255?255:gg;p[i+2]=b<0?0:b>255?255:b}
+  g.putImageData(d,0,0);
 }
 
 /* ---------- 요소 크기 계산 ---------- */
@@ -379,8 +383,9 @@ function rrect(g,x,y,w,h,r){g.beginPath();g.roundRect?g.roundRect(x,y,w,h,r):g.r
 function drawEl(g,e,k){
   const b=box(e);g.save();g.globalAlpha=e.opacity??1;g.translate(b.cx,b.cy);g.rotate(rad(e.rot||0));
   if(e.t==='photo'){
-    g.save();if(e.circle){g.beginPath();g.arc(0,0,e.w/2,0,Math.PI*2)}else rrect(g,-e.w/2,-e.h/2,e.w,e.h,e.radius||0);g.clip();
-    g.drawImage(photoLayer(e.slot,e.w*k,e.h*k),-e.w/2,-e.h/2,e.w,e.h);g.restore();
+    const clipP=t=>{if(e.circle){t.beginPath();t.arc(0,0,e.w/2,0,Math.PI*2)}else rrect(t,-e.w/2,-e.h/2,e.w,e.h,e.radius||0);t.clip()};
+    if(EXP)drawPhotoExport(g,e,clipP);
+    else{g.save();clipP(g);g.drawImage(photoLayer(e.slot,e.w*k,e.h*k),-e.w/2,-e.h/2,e.w,e.h);g.restore()}
     if(e.border){rrect(g,-e.w/2,-e.h/2,e.w,e.h,e.radius||0);g.lineWidth=4;g.strokeStyle=col(e.border);g.stroke()}
   }else if(e.t==='rect'){
     if(e.shadow){g.shadowColor='rgba(60,40,30,.18)';g.shadowBlur=20*k;g.shadowOffsetY=8*k}
@@ -406,6 +411,57 @@ function drawEl(g,e,k){
   g.restore();
 }
 function drawPoster(g,W,H){const k=W/BW;g.save();g.scale(k,k);g.fillStyle=col('bg');g.fillRect(0,0,BW,BH);S.els.forEach(e=>drawEl(g,e,k));g.restore()}
+
+/* ---------- 고해상도 PNG 저장 ----------
+   폰 브라우저의 캔버스 크기 제한(약 1,600만 픽셀)을 넘지 않도록 포스터를 가로 띠로 나눠 그리고,
+   띠마다 PNG로 이어 붙여 압축합니다. 사진은 원본에서 바로 그려 화질을 지킵니다. */
+const SIZES={A4:[2480,3508],A3:[3508,4961],A2:[4961,7016]},STRIP=256;
+let EXP=null;
+function drawPhotoExport(g,e,clipP){
+  const s=S.slots[e.slot],img=s.img||SAMPLE,iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+  const sc=Math.max(e.w/iw,e.h/ih)*s.zoom,dw=iw*sc,dh=ih*sc,ox=(e.w-dw)/2+s.panX*(dw-e.w)/2,oy=(e.h-dh)/2+s.panY*(dh-e.h)/2;
+  const T=EXP.tmp,t=T.getContext('2d',{willReadFrequently:true});
+  t.setTransform(1,0,0,1,0,0);t.clearRect(0,0,T.width,T.height);
+  t.save();t.setTransform(g.getTransform());clipP(t);t.imageSmoothingQuality='high';t.drawImage(img,-e.w/2+ox,-e.h/2+oy,dw,dh);t.restore();
+  adjustPixels(t,T.width,T.height);
+  g.save();g.setTransform(1,0,0,1,0,0);g.drawImage(T,0,0);g.restore();
+}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(parts){let c=0xFFFFFFFF;for(const p of parts)for(let i=0;i<p.length;i++)c=CRC[(c^p[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function chunk(type,data){const h=new Uint8Array(8),tb=new TextEncoder().encode(type),f=new Uint8Array(4);
+  new DataView(h.buffer).setUint32(0,data.length);h.set(tb,4);new DataView(f.buffer).setUint32(0,crc32([tb,data]));return[h,data,f]}
+/* 주문번호를 파란 채널의 가장 낮은 비트에 숨김: 61줄마다 한 줄씩, 가로로 반복 */
+function stampBits(order){const bytes=new TextEncoder().encode(`OP:${order};`),bits=[];bytes.forEach(b=>{for(let i=7;i>=0;i--)bits.push(b>>i&1)});return bits}
+async function exportPNG(size,onProgress){
+  const[W,H]=SIZES[size],k=W/BW,bits=stampBits(S.order||'NA');
+  const strip=document.createElement('canvas');strip.width=W;strip.height=STRIP;
+  const tmp=document.createElement('canvas');tmp.width=W;tmp.height=STRIP;
+  const g=strip.getContext('2d',{willReadFrequently:true});
+  EXP={tmp};
+  const cs=new CompressionStream('deflate'),wr=cs.writable.getWriter(),out=[];
+  const reading=(async()=>{const rd=cs.readable.getReader();for(;;){const{done,value}=await rd.read();if(done)break;out.push(value)}})();
+  try{
+    for(let y0=0;y0<H;y0+=STRIP){
+      const rows=Math.min(STRIP,H-y0);
+      g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,STRIP);g.setTransform(1,0,0,1,0,-y0);drawPoster(g,W,H);
+      const px=g.getImageData(0,0,W,rows).data,buf=new Uint8Array(rows*(W*3+1));
+      for(let r=0;r<rows;r++){const y=y0+r,o=r*(W*3+1),stamp=y%61===30;buf[o]=1;/* Sub 필터 */
+        let pr=0,pg=0,pb=0;
+        for(let x=0;x<W;x++){const i=(r*W+x)*4;let R=px[i],G=px[i+1],B=px[i+2];
+          if(stamp)B=(B&254)|bits[x%bits.length];
+          const j=o+1+x*3;buf[j]=R-pr;buf[j+1]=G-pg;buf[j+2]=B-pb;pr=R;pg=G;pb=B}}
+      await wr.write(buf);onProgress&&onProgress(Math.min(1,(y0+rows)/H));
+      await new Promise(r=>setTimeout(r));
+    }
+    await wr.close();await reading;
+  }finally{EXP=null}
+  const ihdr=new Uint8Array(13);new DataView(ihdr.buffer).setUint32(0,W);new DataView(ihdr.buffer).setUint32(4,H);ihdr.set([8,2,0,0,0],8);
+  const phys=new Uint8Array(9);new DataView(phys.buffer).setUint32(0,11811);new DataView(phys.buffer).setUint32(4,11811);phys[8]=1;/* 300dpi */
+  const text=new TextEncoder().encode(`Software\0ourposter.kr`);
+  const parts=[new Uint8Array([137,80,78,71,13,10,26,10]),...chunk('IHDR',ihdr),...chunk('pHYs',phys),...chunk('tEXt',text)];
+  out.forEach(c=>parts.push(...chunk('IDAT',c)));parts.push(...chunk('IEND',new Uint8Array(0)));
+  return new Blob(parts,{type:'image/png'});
+}
 
 /* ---------- 워터마크: 얼굴은 비우고 제목·날짜 위에만 ---------- */
 function watermark(g,W,H){
@@ -629,12 +685,23 @@ $('tabVenue').onclick=()=>{S.view='venue';$('tabVenue').setAttribute('aria-selec
 /* ---------- 구매 코드 (프로토타입: 체험 코드만 통과) ---------- */
 $('panel').addEventListener('submit',e=>{
   e.preventDefault();const v=$('code').value.trim().toUpperCase(),m=$('codeMsg');m.hidden=false;
-  if(v==='OURPOSTER-DEMO'){S.unlocked=true;m.className='ok';m.textContent='체험 코드로 잠금이 풀렸어요. 워터마크가 사라지고 색감 보정을 쓸 수 있어요.';
+  if(v==='OURPOSTER-DEMO'){S.unlocked=true;S.order='DEMO';m.className='ok';m.textContent='체험 코드로 잠금이 풀렸어요. 워터마크가 사라지고 색감 보정을 쓸 수 있어요.';
     ['aB','aC','aS','aW'].forEach(id=>$(id).disabled=false);$('adjLock').hidden=true;$('dl').hidden=false;$('dlBtn').disabled=false;render()}
   else{m.className='err';m.textContent=v?'코드를 확인하지 못했어요. 이메일로 받은 코드를 그대로 입력해 주세요.':'구매 코드를 입력해 주세요.'}
 });
-$('dlBtn').onclick=()=>{const sz=document.querySelector('input[name=size]:checked').value,px={A4:'2480×3508',A3:'3508×4961',A2:'4961×7016'}[sz];
-  $('dlNote').hidden=false;$('dlNote').textContent=`실제 사이트에서는 여기서 ${sz} 인쇄용 PNG(${px}px, 300dpi)를 바로 내려받아요. 이 미리보기 화면에서는 파일 저장이 막혀 있어요.`};
+$('dlBtn').onclick=async()=>{
+  if(!S.unlocked)return;
+  const sz=document.querySelector('input[name=size]:checked').value,n=$('dlNote'),b=$('dlBtn');n.hidden=false;
+  if(typeof CompressionStream==='undefined'){n.textContent='이 브라우저에서는 파일을 만들 수 없어요. 크롬이나 사파리를 최신 버전으로 업데이트한 뒤 다시 시도해 주세요.';return}
+  b.disabled=true;S.sel=-1;render();
+  try{
+    const blob=await exportPNG(sz,p=>{n.textContent=`${sz} 인쇄용 파일을 만드는 중이에요… ${Math.round(p*100)}%`});
+    const a=document.createElement('a'),url=URL.createObjectURL(blob);
+    a.href=url;a.download=`ourposter-${S.layout}-${sz}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+    n.textContent=`${sz} 인쇄용 PNG(${SIZES[sz].join('×')}px, 300dpi, ${(blob.size/1048576).toFixed(1)}MB)를 저장했어요. 다운로드 폴더를 확인해 주세요.`;
+  }catch(err){console.error(err);n.textContent='파일을 만들다가 문제가 생겼어요. 더 작은 크기(A4)로 다시 시도해 보시거나, 컴퓨터에서 받아 주세요.'}
+  finally{b.disabled=false}
+};
 
 buildStatic();setLayout('L1');
 Promise.all(['700 40px Caveat','40px "Caveat Brush"','700 28px "Courier Prime"','15px "Courier Prime"','44px "Nanum Pen Script"','700 30px Gaegu','700 30px "Nanum Myeongjo"','500 30px "Cormorant Garamond"','700 30px "Playfair Display"','30px "Great Vibes"'].map(f=>document.fonts.load(f,'We do! 우리 결혼해요 ♡'))).then(render,render);
