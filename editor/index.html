@@ -60,6 +60,8 @@ a.btn{display:inline-flex;align-items:center;text-decoration:none}
 .drop.over{border-color:var(--moss);background:var(--lock)}
 .note{font-size:12.5px;color:var(--muted);margin:0}
 .warn{font-size:13px;color:var(--clay);margin:0}
+.confirm{border:1.5px solid var(--moss);border-radius:8px;padding:14px;display:grid;gap:12px;background:var(--bg)}
+.confirm p{margin:0}
 .rangef{display:grid;grid-template-columns:64px 1fr 44px;gap:10px;align-items:center;font-size:13px}
 .rangef output{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted)}
 input[type=range]{width:100%;accent-color:var(--moss)}
@@ -203,7 +205,12 @@ kbd{font-family:var(--body);font-size:11px;border:1px solid var(--line);border-r
           <label><input type="radio" name="size" value="A2" id="szA2">A2 · 4961×7016px</label>
         </div>
       </div>
+      <p class="note" id="bindInfo" aria-live="polite" hidden></p>
       <div class="row"><button type="button" class="btn" id="dlBtn" disabled>고해상도 파일 받기</button></div>
+      <div class="confirm" id="bindAsk" role="group" aria-labelledby="bindQ" hidden>
+        <p id="bindQ"></p>
+        <div class="row"><button type="button" class="btn" id="bindYes">네, 받을게요</button><button type="button" class="btn ghost" id="bindNo">다시 고를게요</button></div>
+      </div>
       <p class="note" id="dlNote" hidden></p>
     </section>
   </form>
@@ -416,7 +423,7 @@ function drawEl(g,e,k){
   }
   g.restore();
 }
-function drawPoster(g,W,H){const k=W/BW;g.save();g.scale(k,k);g.fillStyle=col('bg');g.fillRect(0,0,BW,BH);S.els.forEach(e=>drawEl(g,e,k));g.restore()}
+function drawPoster(g,W,H){const k=W/BW;g.save();g.scale(k,k);g.fillStyle=col('bg');g.fillRect(0,0,BW,BH);(EXP?EXP.els:S.els).forEach(e=>drawEl(g,e,k));g.restore()}
 
 /* ---------- 고해상도 PNG 저장 ----------
    폰 브라우저의 캔버스 크기 제한(약 1,600만 픽셀)을 넘지 않도록 포스터를 가로 띠로 나눠 그리고,
@@ -438,12 +445,12 @@ function chunk(type,data){const h=new Uint8Array(8),tb=new TextEncoder().encode(
   new DataView(h.buffer).setUint32(0,data.length);h.set(tb,4);new DataView(f.buffer).setUint32(0,crc32([tb,data]));return[h,data,f]}
 /* 주문번호를 파란 채널의 가장 낮은 비트에 숨김: 61줄마다 한 줄씩, 가로로 반복 */
 function stampBits(order){const bytes=new TextEncoder().encode(`OP:${order};`),bits=[];bytes.forEach(b=>{for(let i=7;i>=0;i--)bits.push(b>>i&1)});return bits}
-async function exportPNG(size,onProgress){
+async function exportPNG(size,els,onProgress){
   const[W,H]=SIZES[size],k=W/BW,bits=stampBits(S.order||'NA');
   const strip=document.createElement('canvas');strip.width=W;strip.height=STRIP;
   const tmp=document.createElement('canvas');tmp.width=W;tmp.height=STRIP;
   const g=strip.getContext('2d',{willReadFrequently:true});
-  EXP={tmp};
+  EXP={tmp,els};
   const cs=new CompressionStream('deflate'),wr=cs.writable.getWriter(),out=[];
   const reading=(async()=>{const rd=cs.readable.getReader();for(;;){const{done,value}=await rd.read();if(done)break;out.push(value)}})();
   try{
@@ -644,7 +651,7 @@ function setLayout(k){S.layout=k;S.els=LAYOUTS[k].els();S.sel=-1;S.slot=0;syncUI
 function syncUI(){
   document.querySelectorAll('.lay').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===S.layout));
   document.querySelectorAll('.sw').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===S.cw));
-  syncSlots();buildInspector();
+  syncSlots();buildInspector();syncBind();
 }
 function syncSlots(){
   const n=LAYOUTS[S.layout].slots;if(S.slot>=n)S.slot=0;
@@ -692,8 +699,8 @@ $('tabVenue').onclick=()=>{S.view='venue';$('tabVenue').setAttribute('aria-selec
    API_URL이 있으면 Apps Script에 확인합니다. 코드 하나 = 레이아웃 N종(처음 저장한 것부터 묶임), 30일·30번 */
 if(FORM_URL){$('formLink').href=FORM_URL;$('formRow').hidden=false}
 if(API_URL)$('demoNote').hidden=true;
-const ERR={not_found:'코드를 확인하지 못했어요. 이메일로 받은 코드를 그대로 입력해 주세요.',expired:'사용 기간(30일)이 지난 코드예요. 이 메일에 답장해 주시면 도와드릴게요.',
-  layout_full:'이 코드로 받을 수 있는 레이아웃을 모두 골랐어요.',count_full:'이 코드의 저장 횟수(30번)를 모두 썼어요. 메일로 문의해 주세요.',
+const ERR={not_found:'코드를 확인하지 못했어요. 이메일로 받은 코드를 그대로 입력해 주세요.',expired:'사용 기간(30일)이 지난 코드예요. 인스타그램 DM(@ourposter.kr)으로 알려 주시면 도와드릴게요.',
+  layout_full:'이 코드로 받을 수 있는 레이아웃을 모두 골랐어요.',count_full:'이 코드의 저장 횟수(30번)를 모두 썼어요. 인스타그램 DM(@ourposter.kr)으로 문의해 주세요.',
   server:'잠시 연결이 원활하지 않아요. 조금 뒤에 다시 시도해 주세요.',network:'인터넷 연결을 확인한 뒤 다시 시도해 주세요.'};
 async function api(params){
   try{const r=await fetch(API_URL+'?'+new URLSearchParams(params),{redirect:'follow'});return await r.json()}
@@ -703,41 +710,66 @@ function codeStatus(r){
   const rest=r.max-r.layouts.length;
   return `레이아웃 ${r.max}종을 받을 수 있어요`+(r.layouts.length?` · 이미 고른 레이아웃: ${r.layouts.join(', ')}`:'')+(rest>0?` · 남은 칸 ${rest}개`:'')+` · ${r.expires}까지, 저장 ${r.left}번 남음`;
 }
-function unlock(){S.unlocked=true;['aB','aC','aS','aW'].forEach(id=>$(id).disabled=false);$('adjLock').hidden=true;$('dl').hidden=false;$('dlBtn').disabled=false;render()}
+function unlock(){S.unlocked=true;['aB','aC','aS','aW'].forEach(id=>$(id).disabled=false);$('adjLock').hidden=true;$('dl').hidden=false;syncBind();render()}
+
+/* 코드에 담긴 레이아웃 표시. 처음 담는 레이아웃은 받기 전에 한 번 확인합니다 */
+const layName=k=>k+(LAYOUTS[k]?' '+LAYOUTS[k].n:'');
+const josa=(w,a,b)=>{const c=w.charCodeAt(w.length-1)-0xAC00;return w+(c>=0&&c<11172&&c%28?a:b)};
+function syncBind(){
+  $('bindAsk').hidden=true;const i=S.info,n=$('bindInfo');
+  if(!i){n.hidden=true;$('dlBtn').disabled=!S.unlocked;return}
+  const has=i.layouts.includes(S.layout),rest=i.max-i.layouts.length,blocked=!has&&rest<=0;
+  n.hidden=false;
+  n.textContent=`이 코드에 담긴 레이아웃: ${i.layouts.length?i.layouts.map(layName).join(', '):'아직 없음'} · 남은 칸 ${rest}개`+
+    (blocked?` · 지금 보고 있는 ${josa(layName(S.layout),'은','는')} 이 코드에 없어요. 위 레이아웃 목록에서 골라 주세요: ${i.layouts.join(', ')}`:'');
+  $('dlBtn').disabled=!S.unlocked||blocked;
+}
 $('panel').addEventListener('submit',async e=>{
   e.preventDefault();const v=$('code').value.trim().toUpperCase(),m=$('codeMsg');m.hidden=false;
   if(!v){m.className='err';m.textContent='구매 코드를 입력해 주세요.';return}
   if(!API_URL){
-    if(v==='OURPOSTER-DEMO'){S.order='DEMO';S.code=null;m.className='ok';m.textContent='체험 코드로 잠금이 풀렸어요. 워터마크가 사라지고 색감 보정을 쓸 수 있어요.';unlock()}
+    if(v==='OURPOSTER-DEMO'){S.order='DEMO';S.code=null;S.info={layouts:[],max:3,left:30,demo:true};m.className='ok';m.textContent='체험 코드로 잠금이 풀렸어요. 3개 구매처럼 레이아웃 3종을 담아 볼 수 있어요(새로고침하면 처음으로 돌아가요).';unlock()}
     else{m.className='err';m.textContent=ERR.not_found}
     return}
   m.className='ok';m.textContent='코드를 확인하는 중이에요…';
   const r=await api({action:'check',code:v});
   if(!r.ok){m.className='err';m.textContent=ERR[r.error]||ERR.server;return}
-  S.code=v;m.className='ok';m.textContent='확인됐어요! '+codeStatus(r);unlock();
+  S.code=v;S.info=r;m.className='ok';m.textContent='확인됐어요! '+codeStatus(r);unlock();
 });
-$('dlBtn').onclick=async()=>{
-  if(!S.unlocked)return;
+$('dlBtn').onclick=()=>{
+  if(!S.unlocked)return;const i=S.info;
+  if(i&&!i.layouts.includes(S.layout)){
+    const rest=i.max-i.layouts.length,name=layName(S.layout);
+    $('bindQ').textContent=`${josa(name,'을','를')} 이 코드에 담을까요? 담으면 다른 레이아웃으로 바꿀 수 없어요. (남은 칸 ${rest}개 → ${rest-1}개)`;
+    $('bindYes').textContent=`네, ${S.layout} 받을게요`;
+    $('bindAsk').hidden=false;$('bindYes').focus();return}
+  download();
+};
+$('bindYes').onclick=()=>{$('bindAsk').hidden=true;download()};
+$('bindNo').onclick=()=>{$('bindAsk').hidden=true;$('lays').querySelector('[aria-pressed=true]')?.focus()};
+async function download(){
   const sz=document.querySelector('input[name=size]:checked').value,n=$('dlNote'),b=$('dlBtn');n.hidden=false;
   if(typeof CompressionStream==='undefined'){n.textContent='이 브라우저에서는 파일을 만들 수 없어요. 크롬이나 사파리를 최신 버전으로 업데이트한 뒤 다시 시도해 주세요.';return}
-  b.disabled=true;
+  b.disabled=true;const lay=S.layout;
   if(S.code){
     n.textContent='코드를 확인하는 중이에요…';
     const r=await api({action:'claim',code:S.code,layout:S.layout});
     if(!r.ok){
       n.textContent=(ERR[r.error]||ERR.server)+(r.error==='layout_full'?` 고른 레이아웃(${r.layouts.join(', ')})으로 바꾸면 받을 수 있어요.`:'');
-      b.disabled=false;return}
-    S.order=r.order;$('codeMsg').textContent=codeStatus(r);
-  }
+      syncBind();return}
+    S.order=r.order;S.info=r;$('codeMsg').textContent=codeStatus(r);
+  }else if(S.info){if(!S.info.layouts.includes(lay))S.info.layouts.push(lay);S.info.left--}
+  syncBind();b.disabled=true;
+  if(S.layout!==lay){n.textContent=`확인하는 사이에 레이아웃이 바뀌었어요. ${lay} 레이아웃으로 돌아가서 다시 받아 주세요.`;syncBind();return}
   S.sel=-1;render();
   try{
-    const blob=await exportPNG(sz,p=>{n.textContent=`${sz} 인쇄용 파일을 만드는 중이에요… ${Math.round(p*100)}%`});
+    const blob=await exportPNG(sz,S.els.slice(),p=>{n.textContent=`${sz} 인쇄용 파일을 만드는 중이에요… ${Math.round(p*100)}%`});
     const a=document.createElement('a'),url=URL.createObjectURL(blob);
-    a.href=url;a.download=`ourposter-${S.layout}-${sz}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+    a.href=url;a.download=`ourposter-${lay}-${sz}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
     n.textContent=`${sz} 인쇄용 PNG(${SIZES[sz].join('×')}px, 300dpi, ${(blob.size/1048576).toFixed(1)}MB)를 저장했어요. 다운로드 폴더를 확인해 주세요.`;
   }catch(err){console.error(err);n.textContent='파일을 만들다가 문제가 생겼어요. 더 작은 크기(A4)로 다시 시도해 보시거나, 컴퓨터에서 받아 주세요.'}
-  finally{b.disabled=false}
-};
+  finally{syncBind()}
+}
 
 buildStatic();setLayout('L1');
 Promise.all(['700 40px Caveat','40px "Caveat Brush"','700 28px "Courier Prime"','15px "Courier Prime"','44px "Nanum Pen Script"','700 30px Gaegu','700 30px "Nanum Myeongjo"','500 30px "Cormorant Garamond"','700 30px "Playfair Display"','30px "Great Vibes"'].map(f=>document.fonts.load(f,'We do! 우리 결혼해요 ♡'))).then(render,render);
