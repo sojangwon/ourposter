@@ -221,6 +221,10 @@ kbd{font-family:var(--body);font-size:11px;border:1px solid var(--line);border-r
 const API_URL='https://script.google.com/macros/s/AKfycbz51ZzPYcP67ApnUOQ25snoizDU3VhFy_qUSWoPMVeyOX5teMX3dmIcGYMs9M9vxxj9/exec';
 const FORM_URL='https://forms.gle/ZacqCD1c1QmDaK8y7';
 const BW=600,BH=849;
+/* 기본 날짜는 접속한 날로 채움 */
+const TODAY=(()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");return{y:d.getFullYear(),m:d.getMonth()+1,d:d.getDate(),
+  date:`${d.getFullYear()}. ${p(d.getMonth()+1)}. ${p(d.getDate())}`,day:["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"][d.getDay()]}})();
+document.getElementById("fDate").value=TODAY.date;document.getElementById("fTime").value=TODAY.day+" 12:30 PM";
 const $=id=>document.getElementById(id);
 const rad=d=>d*Math.PI/180;
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -307,7 +311,7 @@ const LAYOUTS={
     I('sparkle',50,50,40,-12),I('sparkle',549,113,30,0),
     P({x:300,y:420,w:512,h:540,radius:26,border:'text'}),
     {t:'bubble',tpl:'{ko}',font:'pen',size:38,x:170,y:212,rot:-5,color:'cardText',fill:'card',stroke:'text',tail:'left'},
-    {t:'bubble',text:'11월 21일, 와 줄 거지?',font:'pen',size:36,x:410,y:326,rot:4,color:'cardTitle',fill:'card',stroke:'text',tail:'right'},
+    {t:'bubble',text:`${TODAY.m}월 ${TODAY.d}일, 와 줄 거지?`,font:'pen',size:36,x:410,y:326,rot:4,color:'cardTitle',fill:'card',stroke:'text',tail:'right'},
     I('heart',535,671,62,16),
     T({tpl:'{name1} & {name2}',size:50,x:48,y:778,align:'left',color:'title'}),
     T({role:'date',tpl:'{date}',font:'courier',weight:700,size:24,x:552,y:766,align:'right'}),
