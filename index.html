@@ -67,8 +67,10 @@ nav a:hover{color:var(--stone)}
 .trust li::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--stone);margin-right:8px;vertical-align:middle}
 
 /* 식장 입구 장면 */
-.scene{flex:1 1 480px;min-width:0;position:relative;aspect-ratio:5/4;max-width:100%;border-radius:4px;background:linear-gradient(180deg,#3A4030 0%,var(--moss-deep) 78%,#1E231A 78%,#1B2017 100%);overflow:hidden}
-.scene figcaption{position:absolute;left:20px;right:20px;bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:#ADAA9F}
+/* 포스터가 놓이는 칸과 캡션 띠를 나눠서, 좁은 화면에서도 캡션이 포스터에 가려지지 않게 */
+.scene{flex:1 1 480px;min-width:0;max-width:100%;margin:0;border-radius:4px;overflow:hidden;background:#1B2017}
+.stage{position:relative;aspect-ratio:5/4;max-width:100%;background:linear-gradient(180deg,#3A4030 0%,var(--moss-deep) 100%)}
+.scene figcaption{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;padding:14px 20px 16px;font-size:12px;color:#ADAA9F}
 .scene figcaption b{font-family:var(--serif);font-weight:500;font-size:15px;color:var(--paper)}
 .poster{position:absolute;width:31%;aspect-ratio:600/849;box-shadow:0 18px 32px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden}
 .poster .ph{flex:1;position:relative;display:flex;align-items:center;justify-content:center}
@@ -172,9 +174,11 @@ details p{margin:0 0 20px;color:var(--muted);font-size:15px;max-width:40em}
         </ul>
       </div>
       <figure class="scene" aria-label="러블리 두들 풀샷 포스터를 크림 핑크, 딥 모스, 민트 코랄 컬러로 만든 예시">
+        <div class="stage">
         <div class="poster p1" aria-hidden="true"><div class="ph"><img src="img/hero-garden.jpg" alt="" width="640" height="960"><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
         <div class="poster p2" aria-hidden="true"><div class="ph"><img src="img/hero-closeup.jpg" alt="" width="640" height="960"><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
         <div class="poster p3" aria-hidden="true"><div class="ph"><img src="img/hero-studio.jpg" alt="" width="640" height="960"><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
+        </div>
         <figcaption><b>같은 포스터, 컬러만 바꿨어요</b><span>크림 핑크 · 딥 모스 · 민트 코랄</span></figcaption>
       </figure>
     </div>
