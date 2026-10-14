@@ -72,8 +72,9 @@ nav a:hover{color:var(--stone)}
 .scene figcaption b{font-family:var(--serif);font-weight:500;font-size:15px;color:var(--paper)}
 .poster{position:absolute;width:31%;aspect-ratio:600/849;box-shadow:0 18px 32px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden}
 .poster .ph{flex:1;position:relative;display:flex;align-items:center;justify-content:center}
-.poster .ph small{font-size:12px;opacity:.8}
-.poster .tt{position:absolute;left:8%;bottom:-.18em;font-family:"Caveat Brush",cursive;font-size:clamp(26px,4.4vw,46px);line-height:1;transform:rotate(-7deg)}
+.poster .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}
+.p2 .ph img{filter:grayscale(1) contrast(1.06)}
+.poster .tt{position:absolute;z-index:1;left:8%;bottom:-.18em;font-family:"Caveat Brush",cursive;font-size:clamp(26px,4.4vw,46px);line-height:1;transform:rotate(-7deg)}
 .poster .dt{height:15%;padding:0 8%;display:flex;align-items:center;font-family:"Courier Prime",monospace;font-weight:700;font-size:clamp(9px,1vw,12px)}
 .p1{left:6%;top:16%;transform:rotate(-6deg);background:#FFF6DC}
 .p1 .ph{background:#B9AFA0;color:#3D352B}.p1 .tt{color:#E5628C;text-shadow:2px 2px 0 #FFF6DC}.p1 .dt{color:#4A2C2A}
@@ -171,9 +172,9 @@ details p{margin:0 0 20px;color:var(--muted);font-size:15px;max-width:40em}
         </ul>
       </div>
       <figure class="scene" aria-label="식장 입구에 세운 러블리 두들 포스터 세 장 예시">
-        <div class="poster p1" aria-hidden="true"><div class="ph"><small>샘플 사진</small><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
-        <div class="poster p2" aria-hidden="true"><div class="ph"><small>흑백 샘플 사진</small><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
-        <div class="poster p3" aria-hidden="true"><div class="ph"><small>샘플 사진</small><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
+        <div class="poster p1" aria-hidden="true"><div class="ph"><img src="img/hero-garden.jpg" alt="" width="640" height="960"><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
+        <div class="poster p2" aria-hidden="true"><div class="ph"><img src="img/hero-closeup.jpg" alt="" width="640" height="960"><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
+        <div class="poster p3" aria-hidden="true"><div class="ph"><img src="img/hero-studio.jpg" alt="" width="640" height="960"><span class="tt">We do!</span></div><div class="dt">2026. 11. 21</div></div>
         <figcaption><b>식장 입구에 세웠을 때</b><span>크림 핑크 · 딥 모스 · 민트 코랄</span></figcaption>
       </figure>
     </div>
@@ -297,7 +298,7 @@ details p{margin:0 0 20px;color:var(--muted);font-size:15px;max-width:40em}
 <footer class="foot">
   <div class="in">
     <span>아워포스터 · 문의 인스타그램 DM <a href="https://instagram.com/ourposter.kr">@ourposter.kr</a></span>
-    <span>미리보기 사진은 샘플이에요</span>
+    <span>미리보기 사진은 AI로 만든 샘플이에요</span>
   </div>
 </footer>
 </body>

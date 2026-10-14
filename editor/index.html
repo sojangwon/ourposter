@@ -141,7 +141,7 @@ kbd{font-family:var(--body);font-size:11px;border:1px solid var(--line);border-r
       <div class="drop" id="drop">
         <div class="row">
           <button type="button" class="btn" id="pickBtn">사진 고르기</button>
-          <button type="button" class="btn ghost" id="sampleBtn">샘플 그림으로</button>
+          <button type="button" class="btn ghost" id="sampleBtn">샘플 사진으로</button>
         </div>
         <p class="note">여기로 끌어다 놓아도 돼요. 사진은 이 화면 안에서만 쓰이고 어디에도 올라가지 않아요.</p>
         <input type="file" id="file" accept="image/*" hidden>
@@ -354,7 +354,9 @@ function makeSample(){
   [['#f2b8c0',300,392,14],['#fff',316,384,12],['#e98fa0',312,402,11],['#fff',292,404,10]].forEach(([c2,x,y,r])=>{g.fillStyle=c2;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill()});
   return c;
 }
-const SAMPLE=makeSample();
+/* 기본 샘플 사진(AI로 만든 이미지). 불러오기 전에는 그림 샘플을 씀 */
+let SAMPLE=makeSample();
+{const im=new Image();im.onload=()=>{SAMPLE=im;render()};im.src="../img/sample-sofa.jpg"}
 
 /* ---------- 사진 (칸별 위치·확대, 흑백·보정) ---------- */
 function photoLayer(slot,w,h){
