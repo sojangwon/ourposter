@@ -550,7 +550,14 @@ function drawSel(g,k){
 /* ---------- 렌더 ---------- */
 const cv=$('cv'),ctx=cv.getContext('2d');let raf=0;
 function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(doRender)}
+/* 한글 웹폰트는 글자 묶음별로 나눠 받아 오므로, 화면에 쓰인 글자의 묶음을 먼저 불러온 뒤 다시 그림 (안 하면 한 글자씩 다른 글꼴로 보임) */
+const fontTried=new Set();
+function needFonts(els){const ps=[];for(const e of els){if(e.t!=="text"&&e.t!=="bubble")continue;
+  const f=fontStr(e),t=txt(e).replace(/s/g,"");if(!t||document.fonts.check(f,t))continue;
+  const k=f+"|"+t;if(fontTried.has(k))continue;fontTried.add(k);ps.push(document.fonts.load(f,t))}return ps}
+document.fonts.addEventListener("loadingdone",()=>render());
 function doRender(){
+  {const ps=needFonts(S.els);if(ps.length)Promise.all(ps).then(render,render)}
   const pw=565,ph=800;
   if(S.view==='flat'){if(cv.width!==pw){cv.width=pw;cv.height=ph}ctx.clearRect(0,0,pw,ph);drawPoster(ctx,pw,ph);if(!S.unlocked)watermark(ctx,pw,ph);drawSel(ctx,pw/BW)}
   else{const src=document.createElement('canvas');src.width=pw;src.height=ph;drawPoster(src.getContext('2d'),pw,ph);if(cv.width!==720){cv.width=720;cv.height=900}ctx.clearRect(0,0,720,900);drawVenue(ctx,src)}
@@ -769,6 +776,7 @@ async function download(){
   if(S.layout!==lay){n.textContent=`확인하는 사이에 레이아웃이 바뀌었어요. ${lay} 레이아웃으로 돌아가서 다시 받아 주세요.`;syncBind();return}
   S.sel=-1;render();
   try{
+    await Promise.all(needFonts(S.els)).catch(()=>{});await document.fonts.ready;
     const blob=await exportPNG(sz,S.els.slice(),p=>{n.textContent=`${sz} 인쇄용 파일을 만드는 중이에요… ${Math.round(p*100)}%`});
     const a=document.createElement('a'),url=URL.createObjectURL(blob);
     a.href=url;a.download=`ourposter-${lay}-${sz}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
